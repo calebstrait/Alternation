@@ -26,12 +26,18 @@ function alternation(monkeysInitial, condition)
     
     % Colors.
     colorBackground = [0 0 0];
+    colorCyan       = [0 255 255];
     colorYellow     = [255 255 0];
+    colorWhite      = [255 255 255];
     
     % Coordinates.
     centerX         = 512;                  % X pixel coordinate for the screen center.
     centerY         = 384;                  % Y pixel coordinate for the screen center.
+    endsBoundAdj    = 384;                  % Coordinate adjustment.
     hfWidth         = 88;                   % Half the width of the fixation boxes.
+    imageWidth      = 300;                  % The width of the presented images.
+    imageHeight     = 400;                  % The height of the presented images.
+    sideBoundAdj    = 211;                  % Coordinate adjustment.
     
     % Values to calculate fixation boxes.
     fixBoundXMax    = centerX + hfWidth;
@@ -39,15 +45,29 @@ function alternation(monkeysInitial, condition)
     fixBoundYMax    = centerY + hfWidth;
     fixBoundYMin    = centerY - hfWidth;
     
-    leftBoundXMax   = centerX;
-    leftBoundXMin   = centerX;
-    leftBoundYMax   = centerY;
-    leftBoundYMin   = centerY;
+    % Fixation bondaries for the left stimulus.
+    leftBoundXMax   = 2 * centerX - 4 * hfWidth - imageWidth;
+    leftBoundXMin   = centerX - imageWidth - sideBoundAdj;
+    leftBoundYMax   = centerY + endsBoundAdj;
+    leftBoundYMin   = centerY - endsBoundAdj;
     
-    rightBoundXMax  = centerX;
-    rightBoundXMin  = centerX;
-    rightBoundYMax  = centerY;
-    rightBoundYMin  = centerY;
+    % Fixation boundaries for the right stimulus.
+    rightBoundXMax  = centerX + imageWidth + sideBoundAdj;
+    rightBoundXMin  = 4 * hfWidth + imageWidth;
+    rightBoundYMax  = centerY + endsBoundAdj;
+    rightBoundYMin  = centerY - endsBoundAdj;
+    
+    % Coordinates for drawing the left stimulus image. 
+    leftStimXMax    = centerX - 2 * hfWidth;
+    leftStimXMin    = centerX - 2 * hfWidth - imageWidth;
+    leftStimYMax    = centerY + imageHeight / 2;
+    leftStimYMin    = centerY - imageHeight / 2;
+    
+    % Coordinates for drawing the right stimulus image.
+    rightStimXMax   = centerX + 2 * hfWidth + imageWidth;
+    rightStimXMin   = centerX + 2 * hfWidth;
+    rightStimYMax   = centerY + imageHeight / 2;
+    rightStimYMin   = centerY - imageHeight / 2;
     
     % References.
     monkeyScreen    = 1;                    % Number of the screen the monkey sees.
@@ -70,11 +90,15 @@ function alternation(monkeysInitial, condition)
     varName         = 'data';               % Name of the variable to save in the workspace.
     
     % Stimuli.
+    feedThick       = 10;                   % Thickness of the feedback border.
     dotRadius       = 10;                   % Radius of the fixation dot.
     fixAdj          = 1;
     
     % Times.
-    ITI             = 2;                    % Intertrial interval (set below).
+    chooseFixTime   = 0.4;                  % Time needed to look at option to select it.
+    condADutyCycle  = 4.0;                  % Duty cycle: Time from beginning to end of trial.
+    condBITI        = 1.0;                  % ITI for Condition B.
+    ITI             = 0;                    % Intertrial interval (set below).
     minFixTime      = 0.1;                  % Minimum time monkey must fixate to start trial.
     timeToFix       = intmax;               % Amount of time monkey is given to fixate.
     
@@ -85,6 +109,7 @@ function alternation(monkeysInitial, condition)
     delayOnRight    = 0;                    % Delay before reward given for a right choice.
     rewardOnLeft    = 0;                    % Reward to be given for a left choice.
     rewardOnRight   = 0;                    % Reward to be given for a right choice.
+    screenFlip      = true;                 % Whether or not the screen should be "flipped."
     stimOnLeft      = '';                   % Stimulus to be displayed on the left.
     stimOnRight     = '';                   % Stimulus to be displayed on the right.
     
@@ -110,7 +135,7 @@ function alternation(monkeysInitial, condition)
     % prepare_for_saving;
     
     % Window.
-    % window = setup_window;
+    window = setup_window;
     
     % Eyelink.
     setup_eyelink;
@@ -142,7 +167,7 @@ function alternation(monkeysInitial, condition)
         end
     end
     
-    % Screen('CloseAll');
+    Screen('CloseAll');
     
     % ---------------------------------------------- %
     % ----------------- Functions ------------------ %
@@ -179,6 +204,8 @@ function alternation(monkeysInitial, condition)
                 % Determine if eye is within the left option boundary.
                 if xCoord >= leftBoundXMin && xCoord <= leftBoundXMax && ...
                    yCoord >= leftBoundYMin && yCoord <= leftBoundYMax
+                    draw_feedback('left', colorWhite);
+                    
                     % Determine if eye maintained fixation for given duration.
                     checkFixBreak = fix_break_check(leftBoundXMin, leftBoundXMax, ...
                                                     leftBoundYMin, leftBoundYMax, ...
@@ -187,13 +214,17 @@ function alternation(monkeysInitial, condition)
                     if checkFixBreak == false
                         % Fixation was obtained for desired duration.
                         fixation = true;
-                        area = 'double';
+                        area = 'left';
                         
                         return;
+                    else
+                        draw_stimuli;
                     end
                 % Determine if eye is within the right option boundary.
                 elseif xCoord >= rightBoundXMin && xCoord <= rightBoundXMax && ...
                        yCoord >= rightBoundYMin && yCoord <= rightBoundYMax
+                    draw_feedback('right', colorWhite);
+                    
                     % Determine if eye maintained fixation for given duration.
                     checkFixBreak = fix_break_check(rightBoundXMin, rightBoundXMax, ...
                                                     rightBoundYMin, rightBoundYMax, ...
@@ -202,9 +233,11 @@ function alternation(monkeysInitial, condition)
                     if checkFixBreak == false
                         % Fixation was obtained for desired duration.
                         fixation = true;
-                        area = 'double';
+                        area = 'right';
                         
                         return;
+                    else
+                        draw_stimuli;
                     end
                 end
             else
@@ -215,6 +248,29 @@ function alternation(monkeysInitial, condition)
         % Timeout reached.
         fixation = false;
         area = 'none';
+    end
+
+    % Draw colored outlines around options for feedback.
+    function draw_feedback(location, color)
+        if strcmp(location, 'left')
+            if strcmp(stimOnLeft, 'A') || strcmp(stimOnLeft, 'B')
+                screenFlip = false;
+                draw_stimuli;
+                Screen('FrameRect', window, color, [leftStimXMin, leftStimYMin, ...
+                                                    leftStimXMax, leftStimYMax], feedThick);
+                Screen('Flip', window);
+            end
+        elseif strcmp(location, 'right')
+            if strcmp(stimOnRight, 'A') || strcmp(stimOnRight, 'B')
+                screenFlip = false;
+                draw_stimuli;
+                Screen('FrameRect', window, color, [rightStimXMin, rightStimYMin, ...
+                                                    rightStimXMax, rightStimYMax], feedThick);
+                Screen('Flip', window);
+            end
+        end
+        
+        screenFlip = true;
     end
     
     % Draws a thin line on top of the invisible fixation boundaries.
@@ -231,6 +287,43 @@ function alternation(monkeysInitial, condition)
                                            centerX + dotRadius - fixAdj; ...
                                            centerY + dotRadius]);
         Screen('Flip', window);
+    end
+
+    % Draws the stimuli on the screen depending on the trial type.
+    function draw_stimuli()
+        Screen('FillOval', window, colorBackground, [centerX - dotRadius + fixAdj; ...
+                                                     centerY - dotRadius; ...
+                                                     centerX + dotRadius - fixAdj; ...
+                                                     centerY + dotRadius]);
+        
+        % Set image variables.
+        if condition == 1
+            imgA = imgCoral;
+            imgB = imgDesert;
+        else
+            imgA = imgFlower;
+            imgB = imgSunset;
+        end
+        
+        if strcmp(stimOnLeft, 'A')
+            Screen('PutImage', window, imgA, [leftStimXMin, leftStimYMin, ...
+                                              leftStimXMax, leftStimYMax]);
+        elseif strcmp(stimOnLeft, 'B')
+            Screen('PutImage', window, imgB, [leftStimXMin, leftStimYMin, ...
+                                              leftStimXMax, leftStimYMax]);
+        end
+        
+        if strcmp(stimOnRight, 'A')
+            Screen('PutImage', window, imgA, [rightStimXMin, rightStimYMin, ...
+                                              rightStimXMax, rightStimYMax]);
+        elseif strcmp(stimOnRight, 'B')
+            Screen('PutImage', window, imgB, [rightStimXMin, rightStimYMin, ...
+                                              rightStimXMax, rightStimYMax]);
+        end
+        
+        if screenFlip
+            Screen('Flip', window);
+        end
     end
     
     % Checks if the eye breaks fixation bounds before end of duration.
@@ -490,11 +583,77 @@ function alternation(monkeysInitial, condition)
     
     % Does exactly what you freakin' think it does.
     function run_single_trial()
-        % draw_fixation_point(colorYellow);
+        % Run Condition A.
         if condition == 1
             generate_trial_vars(1);
+        % Run Condition B.
         else
             generate_trial_vars(2);
+        end
+
+        draw_fixation_point(colorYellow);
+        
+        % Start timer only if this is Condition A.
+        if condition == 1
+            startTime = GetSecs;
+        end
+
+        % Check for fixation.
+        [fixating, ~] = check_fixation('single', minFixTime, timeToFix);
+
+        if fixating
+            draw_stimuli;
+
+            fixatingOnTarget = false;
+            while ~fixatingOnTarget
+                % Check for fixation on either targets.
+                [fixatingOnTarget, area] = check_fixation('double', chooseFixTime, timeToFix);
+
+                if fixatingOnTarget
+                    if strcmp(area, 'left')
+                        % Display feedback stimuli.
+                        draw_feedback('left', colorCyan);
+
+                        % Give delay.
+                        WaitSecs(delayOnLeft);
+
+                        % Give appropriate reward.
+                        reward(rewardOnLeft);
+
+                        % Clear screen.
+                        Screen('FillRect', window, colorBackground, ...
+                               [0 0 (centerX * 2) (centerY * 2)]);
+                        Screen('Flip', window);
+                    elseif strcmp(area, 'right')
+                        % Display feedback stimuli.
+                        draw_feedback('right', colorCyan);
+
+                        % Give delay.
+                        WaitSecs(delayOnRight);
+
+                        % Give appropriate reward.
+                        reward(rewardOnRight);
+
+                        % Clear screen.
+                        Screen('FillRect', window, colorBackground, ...
+                               [0 0 (centerX * 2) (centerY * 2)]);
+                        Screen('Flip', window);
+                    end
+                    
+                    % End timer and calculate ITI if this is Condition A.
+                    if condition == 1
+                        endTime = GetSecs;
+                        elapsedTime = endTime - startTime;
+                        ITI = condADutyCycle - elapsedTime;
+                        if ITI < 0
+                            ITI = 0;
+                        end
+                    % Just set ITI if this is Condition B.
+                    else
+                        ITI = condBITI;
+                    end
+                end
+            end
         end
         
         % send_and_save;
