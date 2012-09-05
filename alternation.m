@@ -53,6 +53,11 @@ function alternation(monkeysInitial, condition)
     monkeyScreen    = 1;                    % Number of the screen the monkey sees.
     trackedEye      = 2;                    % Values: 1 (left eye), 2 (right eye).
     
+    % Delays.
+    smallDelay      = 1.0;
+    mediumDelay     = 3.0;
+    largeDelay      = 4.5;
+    
     % Rewards.
     smallReward     = 0.045;
     mediumReward    = 0.078;
@@ -69,7 +74,7 @@ function alternation(monkeysInitial, condition)
     fixAdj          = 1;
     
     % Times.
-    ITI             = 2;                    % Intertrial interval.
+    ITI             = 2;                    % Intertrial interval (set below).
     minFixTime      = 0.1;                  % Minimum time monkey must fixate to start trial.
     timeToFix       = intmax;               % Amount of time monkey is given to fixate.
     
@@ -267,7 +272,59 @@ function alternation(monkeysInitial, condition)
         stimOnRight = tempCurrType(1);
         
         if taskType == 1
+            % Set alternating rewards for the "B" stimulus in Condition A.
+            if strcmp(stimOnLeft, 'A')
+                rewardOnLeft = mediumReward;
+                
+                if altTracker == 0
+                    rewardOnRight = smallReward;
+                    altTracker = 1;
+                else
+                    rewardOnRight = largeReward;
+                    altTracker = 0;
+                end
+            else
+                rewardOnRight = mediumReward;
+                
+                if altTracker == 0
+                    rewardOnLeft = smallReward;
+                    altTracker = 1;
+                else
+                    rewardOnLeft = largeReward;
+                    altTracker = 0;
+                end
+            end
+            
+            % Set constant delays in Condition A.
+            delayOnLeft = smallDelay;
+            delayOnRight = smallDelay;
         elseif taskType == 2
+            % Set alternating delays to reward for the "B" stimulus in Condition B.
+            if strcmp(stimOnLeft, 'A')
+                delayOnLeft = mediumDelay;
+                
+                if altTracker == 0
+                    delayOnRight = smallDelay;
+                    altTracker = 1;
+                else
+                    delayOnRight = largeDelay;
+                    altTracker = 0;
+                end
+            else
+                delayOnRight = mediumDelay;
+                
+                if altTracker == 0
+                    delayOnLeft = smallDelay;
+                    altTracker = 1;
+                else
+                    delayOnLeft = largeDelay;
+                    altTracker = 0;
+                end
+            end
+            
+            % Set constant rewards in Condition B.
+            rewardOnLeft = mediumReward;
+            rewardOnRight = mediumReward;
         else
             disp('Error: Illegal value for the "taskType" argument passed to "generate_trial_vars"');
             disp('Value must be either 1 or 2');
