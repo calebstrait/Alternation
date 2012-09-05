@@ -85,7 +85,7 @@ function alternation(monkeysInitial, condition)
     
     % Saving.
     data            = struct([]);           % Workspace variable where trial data is saved.
-    riskySkewsData  = '/Data/Alternation';  % Directory where .mat files are saved.
+    alternationData = '/Data/Alternation';  % Directory where .mat files are saved.
     saveCommand     = NaN;                  % Command string that will save .mat files.
     varName         = 'data';               % Name of the variable to save in the workspace.
     
@@ -103,15 +103,27 @@ function alternation(monkeysInitial, condition)
     timeToFix       = intmax;               % Amount of time monkey is given to fixate.
     
     % Trial.
+    aCount          = 0;                    % Number of times the A trial option was chosen.
     altTracker      = 0;                    % Keeps track of the alternations.
+    aOverBLowShort  = 0;                    % Times A was chosen over B when B was low or short.
+    aOverBHighLong  = 0;                    % Times A was chosen over B when B was high or long.
+    pAOverBLowShort = 0;                    % Percent A was chosen over B when B was low or short.
+    pAOverBHighLong = 0;                    % Percent A was chosen over B when B was high or long.
+    percentAOverall = 0;                    % Percent A chosen over B overall.
+    choiceMade      = '';                   % What the subject chose; A or B.
     currTrial       = 0;                    % Current trial.
+    decisionTime    = 0;                    % Time monkey took to make a decision.
+    delayGiven      = 0;                    % The delay given on the current trial.
     delayOnLeft     = 0;                    % Delay before reward given for a left choice.
     delayOnRight    = 0;                    % Delay before reward given for a right choice.
+    rewardGiven     = 0;                    % Reward actually received.
     rewardOnLeft    = 0;                    % Reward to be given for a left choice.
     rewardOnRight   = 0;                    % Reward to be given for a right choice.
     screenFlip      = true;                 % Whether or not the screen should be "flipped."
     stimOnLeft      = '';                   % Stimulus to be displayed on the left.
     stimOnRight     = '';                   % Stimulus to be displayed on the right.
+    totalLowShort   = 0;                    % Total # of times a low or short B stimulus was present.
+    totalHighLong   = 0;                    % Total # of times a high or long B stimulus was present.
     
     % ---------------------------------------------- %
     % ------------------- Setup -------------------- %
@@ -132,7 +144,7 @@ function alternation(monkeysInitial, condition)
     end
     
     % Saving.
-    % prepare_for_saving;
+    prepare_for_saving;
     
     % Window.
     window = setup_window;
@@ -148,7 +160,7 @@ function alternation(monkeysInitial, condition)
     while running
         run_single_trial;
         
-        % print_stats();
+        print_stats();
         
         % Check for pausing or quitting during ITI.
         startingTime = GetSecs;
@@ -271,13 +283,6 @@ function alternation(monkeysInitial, condition)
         end
         
         screenFlip = true;
-    end
-    
-    % Draws a thin line on top of the invisible fixation boundaries.
-    function draw_fixation_bounds()
-        Screen('FrameRect', window, colorYellow, [fixBoundXMin fixBoundYMin ...
-                                                  fixBoundXMax fixBoundYMax], 1);
-        Screen('Flip', window);
     end
     
     % Draws the fixation point on the screen.
@@ -461,7 +466,7 @@ function alternation(monkeysInitial, condition)
     
     % Makes a folder and file where data will be saved.
     function prepare_for_saving()
-        cd(riskySkewsData);
+        cd(alternationData);
         
         % Check if cell ID was passed in with monkey's initial.
         if numel(monkeysInitial) == 1
@@ -473,7 +478,7 @@ function alternation(monkeysInitial, condition)
         end
         
         dateStr = datestr(now, 'yymmdd');
-        filename = [initial dateStr '.' cell '1.<TrialNameInitials>.mat'];
+        filename = [initial dateStr '.' cell '1.A.mat'];
         folderNameDay = [initial dateStr];
         
         % Make and/or enter a folder where .mat files will be saved.
@@ -489,7 +494,7 @@ function alternation(monkeysInitial, condition)
         while fileNum ~= 0
             if exist(filename, 'file') == 2
                 fileNum = fileNum + 1;
-                filename = [initial dateStr '.' cell num2str(fileNum) '.<TrialNameInitials>.mat'];
+                filename = [initial dateStr '.' cell num2str(fileNum) '.A.mat'];
             else
                 fileNum = 0;
             end
@@ -502,29 +507,71 @@ function alternation(monkeysInitial, condition)
     % Prints current trial stats.
     function print_stats()
         % Convert percentages to strings.
-        blockPercentCorrStr  = strcat(num2str(blockPercentCorr), '%');
-        totalPercentCorrStr  = strcat(num2str(totalPercentCorr), '%');
-        currBlockTrialStr    = num2str(currBlockTrial);
-        trialCountStr        = num2str(trialCount);
+        aPercentStr     = strcat(num2str(percentAOverall), '%');
+        aOverBLowStr    = strcat(num2str(pAOverBLowShort), '%');
+        aOverBHighStr   = strcat(num2str(pAOverBHighLong), '%');
+        trialCountStr   = num2str(currTrial);
+        rewardGivenStr  = num2str(rewardGiven);
+        decisionTimeStr = num2str(decisionTime);
+        delayGivenStr   = num2str(delayGiven);
         
+        if condition == 1
+            conditionStr = 'A (alternating rewards)';
+            choiceStrA   = 'A (coral)';
+            choiceStrB   = 'B (desert)';
+            
+            if strcmp(choiceMade, 'A')
+                chosenImageStr = choiceStrA;
+            else
+                chosenImageStr = choiceStrB;
+            end
+        else
+            conditionStr = 'B (alternating delays)';
+            choiceStrA   = 'A (flower)';
+            choiceStrB   = 'B (sunset)';
+            
+            if strcmp(choiceMade, 'A')
+                chosenImageStr = choiceStrA;
+            else
+                chosenImageStr = choiceStrB;
+            end
+        end
+
         home;
         disp('             ');
         disp('****************************************');
         disp('             ');
-        fprintf('Block trials: % s', currBlockTrialStr);
+        fprintf('Condition type: % s', conditionStr);
         disp('             ');
         fprintf('Total trials: % s', trialCountStr);
         disp('             ');
         disp('             ');
         disp('----------------------------------------');
         disp('             ');
-        fprintf('Block correct: % s', blockPercentCorrStr);
+        fprintf('Choice made: % s', chosenImageStr);
         disp('             ');
-        fprintf('Total correct: % s', totalPercentCorrStr);
+        fprintf('Decision time: % s', decisionTimeStr);
+        disp('             ');
+        fprintf('Reward delay: % s', delayGivenStr); 
+        disp('             ');
+        fprintf('Reward duration: % s', rewardGivenStr);
+        disp('             ');
+        disp('             ');
+        disp('----------------------------------------');
+        disp('             ');
+        fprintf('Chose A: % s', aPercentStr);
+        disp('             ');
+        fprintf('Chose A over B low/short: % s', aOverBLowStr);
+        disp('             ');
+        fprintf('Chose A over B high/long: % s', aOverBHighStr);
         disp('             ');
         disp('             ');
         disp('****************************************');
     end
+
+    pAOverBLowShort = 0;                    % Percent A was chosen over B when B was low or short.
+    pAOverBHighLong = 0;                    % Percent A was chosen over B when B was high or long.
+    percentAOverall = 0;                    % Percent A chosen over B overall.
     
     function k = pause(k)
         disp('             ');
@@ -583,6 +630,8 @@ function alternation(monkeysInitial, condition)
     
     % Does exactly what you freakin' think it does.
     function run_single_trial()
+        currTrial = currTrial + 1;
+        
         % Run Condition A.
         if condition == 1
             generate_trial_vars(1);
@@ -603,6 +652,8 @@ function alternation(monkeysInitial, condition)
 
         if fixating
             draw_stimuli;
+            
+            startClock = GetSecs;
 
             fixatingOnTarget = false;
             while ~fixatingOnTarget
@@ -610,6 +661,9 @@ function alternation(monkeysInitial, condition)
                 [fixatingOnTarget, area] = check_fixation('double', chooseFixTime, timeToFix);
 
                 if fixatingOnTarget
+                    endClock = GetSecs;
+                    decisionTime = endClock - startClock;
+                    
                     if strcmp(area, 'left')
                         % Display feedback stimuli.
                         draw_feedback('left', colorCyan);
@@ -624,6 +678,31 @@ function alternation(monkeysInitial, condition)
                         Screen('FillRect', window, colorBackground, ...
                                [0 0 (centerX * 2) (centerY * 2)]);
                         Screen('Flip', window);
+                        
+                        % Counter updates.
+                        if strcmp(stimOnLeft, 'A')
+                            choiceMade = 'A';
+                            aCount = aCount + 1;
+                            
+                            if altTracker == 0
+                                aOverBLowShort = aOverBLowShort + 1;
+                                totalLowShort = totalLowShort + 1;
+                            else
+                                aOverBHighLong = aOverBHighLong + 1;
+                                totalHighLong = totalHighLong + 1;
+                            end
+                        else
+                            choiceMade = 'B';
+                            
+                            if altTracker == 0
+                                totalLowShort = totalLowShort + 1;
+                            else
+                                totalHighLong = totalHighLong + 1;
+                            end
+                        end
+                        
+                        delayGiven = delayOnLeft;
+                        rewardGiven = rewardOnLeft;
                     elseif strcmp(area, 'right')
                         % Display feedback stimuli.
                         draw_feedback('right', colorCyan);
@@ -638,6 +717,31 @@ function alternation(monkeysInitial, condition)
                         Screen('FillRect', window, colorBackground, ...
                                [0 0 (centerX * 2) (centerY * 2)]);
                         Screen('Flip', window);
+                        
+                        % Counter updates.
+                        if strcmp(stimOnRight, 'A')
+                            choiceMade = 'A';
+                            aCount = aCount + 1;
+                            
+                            if altTracker == 0
+                                aOverBLowShort = aOverBLowShort + 1;
+                                totalLowShort = totalLowShort + 1;
+                            else
+                                aOverBHighLong = aOverBHighLong + 1;
+                                totalHighLong = totalHighLong + 1;
+                            end
+                        else
+                            choiceMade = 'B';
+                            
+                            if altTracker == 0
+                                totalLowShort = totalLowShort + 1;
+                            else
+                                totalHighLong = totalHighLong + 1;
+                            end
+                        end
+                        
+                        delayGiven = delayOnLeft;
+                        rewardGiven = rewardOnRight;
                     end
                     
                     % End timer and calculate ITI if this is Condition A.
@@ -656,13 +760,54 @@ function alternation(monkeysInitial, condition)
             end
         end
         
-        % send_and_save;
+        save_trial_data;
     end
 
     % Saves trial data to a .mat file.
-    function send_and_save()
+    function save_trial_data()
+        % Calculations to create saved trial data.
+        percentAOverall = round((aCount / currTrial) * 100);
+        
+        if totalLowShort == 0
+            pAOverBLowShort = 0;
+        else
+            pAOverBLowShort = round((aOverBLowShort / totalLowShort) * 100);
+        end
+        
+        if totalHighLong == 0
+            pAOverBHighLong = 0;
+        else
+            pAOverBHighLong = round((aOverBHighLong / totalHighLong) * 100);
+        end
+        
         % Save variables to a .mat file.
-        data(currTrial).trial = currTrial;  % The trial number for this trial.
+        data(currTrial).trial = currTrial;               % The trial number for this trial.
+        data(currTrial).condition = condition;           % 0 for Condition A; 1 for Condition B.
+        data(currTrial).percentA = percentAOverall;      % Percent times A was chosen overall.
+        data(currTrial).perAOverBLow = pAOverBLowShort;  % Percent A chosen over a B low or short.
+        data(currTrial).perAOverBHigh = pAOverBHighLong; % Percent A chosen over a B high or long.
+        data(currTrial).stimOnLeft = stimOnLeft;         % A or B.
+        data(currTrial).stimOnRight = stimOnRight;       % A or B.
+        data(currTrial).delayOnLeft = delayOnLeft;       % Just what it says.
+        data(currTrial).delayOnRight = delayOnRight;     % Just what it says.
+        data(currTrial).rewardOnLeft = rewardOnLeft;     % Just what it says.
+        data(currTrial).rewardOnRight = rewardOnRight;   % Just what it says.
+        data(currTrial).choiceMade = choiceMade;         % Option selected.
+        data(currTrial).decisionTime = decisionTime; % How long it took the monkey to make a choice.
+        data(currTrial).delayGiven = delayGiven;         % The delay the monkey experienced.
+        data(currTrial).rewardGiven = rewardGiven;       % Reward actually received.
+        data(currTrial).smallDelay = smallDelay;         % Just what it says.
+        data(currTrial).mediumDelay = mediumDelay;       % Just what it says.
+        data(currTrial).largeDelay = largeDelay;         % Just what it says.
+        data(currTrial).smallReward = smallReward;       % Just what it says.
+        data(currTrial).mediumReward = mediumReward;     % Just what it says.
+        data(currTrial).largeReward = largeReward;       % Just what it says.
+        data(currTrial).chooseFixTime = chooseFixTime;   % Time needed to look at option to select it.
+        data(currTrial).condADutyCycle = condADutyCycle; % Condition A's duty cycle.
+        data(currTrial).ITI = ITI;                       % Intertrial interval.
+        data(currTrial).minFixTime = minFixTime;         % Minimum time monkey must fixate to start trial.
+        data(currTrial).timeToFix = timeToFix;           % Amount of time monkey is given to fixate.
+        data(currTrial).trackedEye = trackedEye;         % which eye was tracked on the monkey.
         
         eval(saveCommand);
     end
